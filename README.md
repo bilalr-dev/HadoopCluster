@@ -1,7 +1,6 @@
 # Hadoop MapReduce Exercises
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Markdown](https://img.shields.io/badge/Markdown-000000?style=for-the-badge&logo=markdown&logoColor=white)
 ![Hadoop](https://img.shields.io/badge/Apache%20Hadoop-66CCFF?style=for-the-badge&logo=apachehadoop&logoColor=white)
 
 A collection of 31 MapReduce exercises implemented in Python for learning Hadoop distributed computing. Each exercise demonstrates different MapReduce patterns and use cases, from basic word counting to complex data processing tasks.

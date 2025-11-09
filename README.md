@@ -20,6 +20,252 @@ This repository contains MapReduce exercises covering:
 - Python 3
 - HDFS configured and running
 
+## Installation
+
+### For macOS and Linux
+
+#### Step 1: Install Java 11
+
+Hadoop 3.3.6 requires Java 8 or 11 (not Java 21+).
+
+**macOS (using Homebrew):**
+```bash
+# Install Java 11
+brew install openjdk@11
+
+# Set JAVA_HOME
+export JAVA_HOME=$(/usr/libexec/java_home -v 11)
+export PATH=$JAVA_HOME/bin:$PATH
+
+# Verify installation
+java -version
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+# Install OpenJDK 11
+sudo apt-get update
+sudo apt-get install openjdk-11-jdk
+
+# Set JAVA_HOME (add to ~/.bashrc or ~/.zshrc)
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+
+# Verify installation
+java -version
+```
+
+#### Step 2: Download and Install Hadoop
+
+```bash
+# Download Hadoop 3.3.6
+cd ~
+wget https://archive.apache.org/dist/hadoop/core/hadoop-3.3.6/hadoop-3.3.6.tar.gz
+
+# Extract Hadoop
+tar -xzf hadoop-3.3.6.tar.gz
+
+# Move to installation directory
+sudo mv hadoop-3.3.6 /usr/local/hadoop
+
+# Set ownership
+sudo chown -R $USER /usr/local/hadoop
+```
+
+#### Step 3: Configure Environment Variables
+
+Add the following to `~/.bashrc` (Linux) or `~/.zshrc` (macOS):
+
+```bash
+export HADOOP_HOME=/usr/local/hadoop
+export HADOOP_INSTALL=$HADOOP_HOME
+export HADOOP_MAPRED_HOME=$HADOOP_HOME
+export HADOOP_COMMON_HOME=$HADOOP_HOME
+export HADOOP_HDFS_HOME=$HADOOP_HOME
+export YARN_HOME=$HADOOP_HOME
+export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
+export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+```
+
+Reload your shell configuration:
+```bash
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+#### Step 4: Configure SSH for Localhost
+
+Hadoop uses SSH to start and stop daemons. Set up passwordless SSH:
+
+```bash
+# Generate SSH key (if not exists)
+ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa
+
+# Add to authorized_keys
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+
+# Set permissions
+chmod 0600 ~/.ssh/authorized_keys
+
+# Test SSH
+ssh localhost "echo 'SSH works!'"
+```
+
+**Note for macOS**: Enable Remote Login in System Preferences > Sharing > Remote Login.
+
+#### Step 5: Configure Hadoop Files
+
+**Edit `$HADOOP_HOME/etc/hadoop/core-site.xml`:**
+```xml
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://localhost:9000</value>
+    </property>
+</configuration>
+```
+
+**Edit `$HADOOP_HOME/etc/hadoop/hdfs-site.xml`:**
+```xml
+<configuration>
+    <property>
+        <name>dfs.replication</name>
+        <value>1</value>
+    </property>
+    <property>
+        <name>dfs.namenode.name.dir</name>
+        <value>file:///usr/local/hadoop/hadoop_data/hdfs/namenode</value>
+    </property>
+    <property>
+        <name>dfs.datanode.data.dir</name>
+        <value>file:///usr/local/hadoop/hadoop_data/hdfs/datanode</value>
+    </property>
+    <property>
+        <name>dfs.webhdfs.enabled</name>
+        <value>true</value>
+    </property>
+</configuration>
+```
+
+**Create `$HADOOP_HOME/etc/hadoop/mapred-site.xml`:**
+```xml
+<configuration>
+    <property>
+        <name>mapreduce.framework.name</name>
+        <value>yarn</value>
+    </property>
+    <property>
+        <name>yarn.app.mapreduce.am.env</name>
+        <value>HADOOP_MAPRED_HOME=/usr/local/hadoop</value>
+    </property>
+    <property>
+        <name>mapreduce.map.env</name>
+        <value>HADOOP_MAPRED_HOME=/usr/local/hadoop</value>
+    </property>
+    <property>
+        <name>mapreduce.reduce.env</name>
+        <value>HADOOP_MAPRED_HOME=/usr/local/hadoop</value>
+    </property>
+</configuration>
+```
+
+**Edit `$HADOOP_HOME/etc/hadoop/yarn-site.xml`:**
+```xml
+<configuration>
+    <property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.env-whitelist</name>
+        <value>JAVA_HOME,HADOOP_COMMON_HOME,HADOOP_HDFS_HOME,HADOOP_CONF_DIR,CLASSPATH_PREPEND_DISTCACHE,HADOOP_YARN_HOME,HADOOP_MAPRED_HOME</value>
+    </property>
+</configuration>
+```
+
+#### Step 6: Create Data Directories
+
+```bash
+# Create directories for NameNode and DataNode
+mkdir -p /usr/local/hadoop/hadoop_data/hdfs/namenode
+mkdir -p /usr/local/hadoop/hadoop_data/hdfs/datanode
+
+# Set ownership
+sudo chown -R $USER /usr/local/hadoop/hadoop_data
+sudo chmod -R 755 /usr/local/hadoop/hadoop_data
+```
+
+#### Step 7: Format NameNode
+
+```bash
+hdfs namenode -format
+```
+
+#### Step 8: Start Hadoop Services
+
+```bash
+# Start HDFS (NameNode, DataNode, SecondaryNameNode)
+start-dfs.sh
+
+# Start YARN (ResourceManager, NodeManager)
+start-yarn.sh
+
+# Verify services are running
+jps
+# Should show: NameNode, DataNode, SecondaryNameNode, ResourceManager, NodeManager
+```
+
+#### Step 9: Verify Installation
+
+```bash
+# Check HDFS
+hdfs dfs -ls /
+
+# Access web UIs
+# NameNode: http://localhost:9870
+# ResourceManager: http://localhost:8088
+```
+
+### For Windows
+
+#### Option 1: Using WSL (Windows Subsystem for Linux) - Recommended
+
+1. **Install WSL 2**:
+   ```powershell
+   wsl --install
+   ```
+
+2. **Install Ubuntu** from Microsoft Store
+
+3. **Follow the macOS/Linux installation steps above** inside the WSL Ubuntu terminal
+
+#### Option 2: Native Windows Installation
+
+1. **Install Java 11**:
+   - Download from [Oracle](https://www.oracle.com/java/technologies/javase/jdk11-archive-downloads.html) or [Adoptium](https://adoptium.net/)
+   - Set `JAVA_HOME` environment variable to Java installation path
+   - Add `%JAVA_HOME%\bin` to PATH
+
+2. **Install Hadoop**:
+   - Download Hadoop 3.3.6 from [Apache Hadoop](https://archive.apache.org/dist/hadoop/core/hadoop-3.3.6/)
+   - Extract to `C:\hadoop` (or your preferred location)
+   - Set `HADOOP_HOME` environment variable
+
+3. **Install SSH**:
+   - Use [OpenSSH for Windows](https://github.com/PowerShell/Win32-OpenSSH) or [Cygwin](https://www.cygwin.com/)
+   - Configure passwordless SSH for localhost
+
+4. **Configure Hadoop**:
+   - Edit configuration files in `%HADOOP_HOME%\etc\hadoop\`
+   - Use Windows-style paths (e.g., `file:///C:/hadoop/hadoop_data/hdfs/namenode`)
+
+5. **Start Hadoop**:
+   ```cmd
+   %HADOOP_HOME%\sbin\start-dfs.cmd
+   %HADOOP_HOME%\sbin\start-yarn.cmd
+   ```
+
+**Note**: Native Windows installation can be more complex. WSL is recommended for easier setup and better compatibility.
+
 ## Structure
 
 Each exercise is organized in its own directory (`exercise_1/`, `exercise_2/`, etc.) containing:

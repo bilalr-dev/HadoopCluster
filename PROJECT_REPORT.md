@@ -1016,6 +1016,27 @@ After running a job, verify:
 
 ---
 
+## Local vs Hadoop: Lessons Learned
+
+### Pain Points with the Classic Local Method
+- **Manual plumbing:** Running `cat file | mapper | sort | reducer` for every exercise becomes repetitive. Forgetting the `sort` step or mistyping a pipe breaks the flow, especially for two-stage pipelines like Exercise 8.
+- **Single-threaded execution:** Processing large CSV files locally quickly hits CPU limits. Even trivial mistakes (like accidental `print()` spam) freeze the terminal because everything runs in one process.
+- **Ad-hoc parameter passing:** Environment variables (e.g., `THRESHOLD=21` for Exercise 12) must be exported manually per terminal session. When switching between exercises it is easy to leave stale values in the shell.
+- **No distributed cache equivalent:** Files such as `stopwords.txt`, `dictionary.txt`, or `business_rules.txt` must sit next to the scripts. Copying and keeping them in sync across directories was error-prone before Hadoop’s `-file` option.
+- **Output management:** Local runs drop results into the terminal or temporary files. Tracking 31 outputs manually makes diffing results and verifying idempotency cumbersome.
+
+### How Hadoop Simplified the Workflow
+- **Streaming handles plumbing:** Hadoop Streaming guarantees the mapper output is sorted before hitting the reducer, so the classic Unix pipeline mistakes disappear. Each job definition is self-contained.
+- **Parallelism for free:** Even on a single node, Hadoop splits input into blocks and can launch multiple mapper tasks. Jobs that took ~45 seconds locally dropped below 10 seconds when HDFS fed multiple tasks in parallel.
+- **Declarative parameters:** `-cmdenv` captures environment variables inside the job definition, so reruns weeks later still carry the same configuration without hunting through shell history.
+- **Managed distributed files:** Using `-file` ensures supplemental assets are copied to every task container. Hadoop keeps the working directory clean and prevents “file not found” surprises.
+- **Auditable outputs:** Every run leaves an immutable `_SUCCESS` flag and timestamped `part-*` outputs in HDFS. Combined with the Web UI, it is easy to prove when data was produced and by which job ID.
+
+### Takeaway
+Classic local runs are convenient for quick smoke tests, but they do not scale operationally. Hadoop introduced structure: reproducible job commands, automatic sorting, auditable outputs, and lightweight parallelism. After migrating each exercise to Hadoop, rerunning the entire set became a scripted, deterministic process instead of a collection of ad-hoc shell pipelines.
+
+---
+
 ## Conclusion
 
 This project successfully demonstrates:

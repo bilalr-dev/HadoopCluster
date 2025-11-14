@@ -13,11 +13,15 @@
 
 ## Project Overview
 
-This project implements **31 MapReduce exercises** in Python, demonstrating various distributed data processing patterns using Hadoop. The exercises range from basic word counting to complex multi-stage jobs, joins, and dictionary lookups.
+The repository implements **31 MapReduce exercises** in Python. This report focuses on the **first 10 mandatory exercises**, which already cover a broad range of distributed processing patterns—from basic word counting to multi-stage aggregations.
 
-**Key Statistics:**
-- **Total Exercises**: 31
-- **Python Scripts**: 56 (mappers and reducers)
+**Scope of This Report:**
+- Focuses on the **first 10 mandatory exercises** in the series
+- Remaining exercises (11–29) exist in the repository but are optional and not covered here
+
+**Key Statistics (for the first 10 exercises):**
+- **Total Exercises Covered**: 10
+- **Python Scripts**: 20 (mappers and reducers)
 - **Programming Language**: Python 3
 - **Hadoop Version**: 3.3.6
 - **Execution Method**: Hadoop Streaming
@@ -51,7 +55,7 @@ BigDataLab/
 ├── README.md                          # Main project documentation
 ├── PROJECT_REPORT.md                  # This report
 ├── .gitignore                         # Git ignore rules
-├── exercise_1/                        # Exercise directories
+├── exercise_1/                        # Exercise directories (1–10 mandatory)
 │   ├── README.md                      # Exercise-specific instructions
 │   ├── wordcount_mapper.py            # Mapper script
 │   ├── wordcount_reducer.py           # Reducer script
@@ -63,11 +67,11 @@ BigDataLab/
 │   └── [input files]
 ├── exercise_3/
 │   └── ...
-└── [exercise_4 through exercise_29]
+└── [exercise_4 through exercise_10]
 ```
 
 **Directory Naming Convention:**
-- `exercise_N/` - Sequential numbering (1-29, with some exercises having "Bis" variants like `exercise_13Bis`)
+- `exercise_N/` - Sequential numbering (1-10 for the mandatory set)
 
 **File Naming Convention:**
 - `*_mapper.py` - Mapper scripts
@@ -199,100 +203,19 @@ if __name__ == "__main__":
     main()
 ```
 
-#### 3. Special Patterns
+#### 3. Special Patterns Found in Exercises 1–10
 
-**Map-Only Jobs:**
-Some exercises don't require reducers (e.g., Exercise 12, 18, 19, 21). These use only mappers:
+- **Multi-file ingestion (Exercise 2):** Demonstrates running the mapper against multiple input documents to build a single aggregate word count.
+- **Temporal bucketing (Exercises 3–5):** Shows how to parse CSV/TSV timestamps and bucket readings by day, month, or sensor zone before aggregation.
+- **Two-stage processing (Exercise 8):** Chains two MapReduce jobs—first to compute monthly totals, then to compute yearly averages based on the first job’s output.
+- **Combiners (Exercise 9):** Introduces mapper-side aggregation to shrink shuffle volume when counting frequent tokens.
+- **Full-scan totals (Exercise 10):** Reinforces reducer-side summations by scanning every column and emitting global totals.
 
-```python
-#!/usr/bin/env python3
-import sys
+### Exercise Categories Covered in This Report
 
-def main():
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        
-        # Filter or transform data
-        if condition_met(line):
-            print(line)  # Output filtered data
-
-if __name__ == "__main__":
-    main()
-```
-
-**Environment Variables:**
-Some exercises accept parameters via environment variables (e.g., Exercise 12 with `THRESHOLD`):
-
-```python
-#!/usr/bin/env python3
-import sys
-import os
-
-def main():
-    threshold = float(os.environ.get('THRESHOLD', '0'))
-    
-    for line in sys.stdin:
-        # Use threshold in processing
-        if value < threshold:
-            print(line)
-
-if __name__ == "__main__":
-    main()
-```
-
-**Distributed Cache:**
-Exercises that need auxiliary files (dictionaries, stopwords, business rules) use Hadoop's distributed cache:
-
-```python
-#!/usr/bin/env python3
-import sys
-import os
-
-def load_dictionary():
-    # File is available in current working directory via -file option
-    dictionary = {}
-    with open('dictionary.txt', 'r') as f:
-        for line in f:
-            # Load dictionary entries
-            pass
-    return dictionary
-
-def main():
-    dictionary = load_dictionary()
-    for line in sys.stdin:
-        # Use dictionary for lookups
-        pass
-
-if __name__ == "__main__":
-    main()
-```
-
-**Two-Stage Jobs:**
-Exercise 8 demonstrates chaining MapReduce jobs where the output of the first job becomes input to the second:
-
-1. **First Job**: Calculate monthly totals
-2. **Second Job**: Calculate yearly averages from monthly totals
-
-### Exercise Categories
-
-**Basic Operations (Exercises 1-6):**
-- Word counting
-- Aggregations (sum, average, max, min)
-- Filtering
-
-**Intermediate Operations (Exercises 7-15):**
-- Inverted indexes
-- Combiners
-- Multi-stage jobs
-- Dictionary lookups
-
-**Advanced Operations (Exercises 17-29):**
-- Complex joins
-- Business rule categorization
-- Social network analysis
-- Question-answer mapping
+- **Exercises 1–6 (Foundational analytics):** Word counting, PM10 pollution summaries, rolling averages, min/max detection, and data filtering.
+- **Exercises 7–9 (Intermediate patterns):** Inverted index construction, two-stage revenue aggregation, and introducing combiners to reduce shuffle volume.
+- **Exercise 10 (Operational totals):** Full data scan that tallies counts across multiple columns, reinforcing reducer-side aggregations.
 
 ---
 
@@ -327,26 +250,18 @@ cat wordcount_input.txt | python3 wordcount_mapper.py | sort | python3 wordcount
 - `sort` - Sorts mapper output (Hadoop does this automatically)
 - `python3 wordcount_reducer.py` - Runs reducer
 
-#### Example: Exercise 12 (Select Outliers - with environment variable)
+#### Example: Exercise 8 (Two-Stage Income Analysis)
 
 ```bash
-cd exercise_12
+# Job 1: Monthly totals
+cd exercise_8
+cat income_input.csv | python3 monthly_total_mapper.py | sort | python3 monthly_total_reducer.py > monthly_totals.txt
 
-# Test with environment variable
-export THRESHOLD=21
-cat select_outliers_file1.csv | python3 select_outliers_mapper.py
+# Job 2: Yearly averages (use output from job 1)
+cat monthly_totals.txt | python3 yearly_average_mapper.py | sort | python3 yearly_average_reducer.py
 ```
 
-#### Example: Exercise 21 (Stopword Removal - with distributed cache)
-
-```bash
-cd exercise_21
-
-# Test locally (file must be in same directory)
-cat sentences_input.txt | python3 stopword_mapper.py stopwords.txt
-```
-
-**Note:** Local testing is useful for debugging, but the exercises are designed to run on Hadoop for distributed processing benefits.
+**Note:** Local testing is useful for debugging, but the exercises are designed to run on Hadoop for distributed processing benefits, especially when chaining multiple stages like Exercise 8.
 
 ### Local Testing Limitations
 
@@ -678,12 +593,6 @@ hdfs dfs -put exercise_1/wordcount_input.txt /user/$USER/exercises/input/exercis
 hdfs dfs -put exercise_2/document.txt exercise_2/document2.txt /user/$USER/exercises/input/exercise_2/
 ```
 
-**Upload Entire Directory:**
-```bash
-# Example: Exercise 21 (multiple files)
-hdfs dfs -put exercise_21/sentences_input.txt exercise_21/stopwords.txt /user/$USER/exercises/input/exercise_21/
-```
-
 **Verify Upload:**
 ```bash
 # List files in HDFS directory
@@ -720,46 +629,6 @@ hadoop jar "$STREAMING_JAR" \
 - `-file` - Distributes Python scripts to cluster nodes
 - `-input` - HDFS input path (supports wildcards like `*`)
 - `-output` - HDFS output directory (must not exist)
-
-#### Map-Only Jobs
-
-Some exercises don't require reducers:
-
-```bash
-hadoop jar "$STREAMING_JAR" \
-  -mapper exercise_12/select_outliers_mapper.py \
-  -file exercise_12/select_outliers_mapper.py \
-  -input "/user/$USER/exercises/input/exercise_12/*" \
-  -output "/user/$USER/exercises/output/exercise_12"
-```
-
-#### Jobs with Environment Variables
-
-Pass parameters via `-cmdenv`:
-
-```bash
-hadoop jar "$STREAMING_JAR" \
-  -mapper exercise_12/select_outliers_mapper.py \
-  -file exercise_12/select_outliers_mapper.py \
-  -cmdenv THRESHOLD=21 \
-  -input "/user/$USER/exercises/input/exercise_12/*" \
-  -output "/user/$USER/exercises/output/exercise_12"
-```
-
-#### Jobs with Distributed Cache
-
-Use `-file` to distribute auxiliary files:
-
-```bash
-hadoop jar "$STREAMING_JAR" \
-  -mapper exercise_21/stopword_mapper.py \
-  -file exercise_21/stopword_mapper.py \
-  -file exercise_21/stopwords.txt \
-  -input "/user/$USER/exercises/input/exercise_21/sentences_input.txt" \
-  -output "/user/$USER/exercises/output/exercise_21"
-```
-
-The auxiliary file (`stopwords.txt`) is available in the mapper's working directory.
 
 #### Two-Stage Jobs
 
@@ -1023,13 +892,12 @@ After running a job, verify:
 - **Single-threaded execution:** Processing large CSV files locally quickly hits CPU limits. Even trivial mistakes (like accidental `print()` spam) freeze the terminal because everything runs in one process.
 - **Ad-hoc parameter passing:** Environment variables (e.g., `THRESHOLD=21` for Exercise 12) must be exported manually per terminal session. When switching between exercises it is easy to leave stale values in the shell.
 - **No distributed cache equivalent:** Files such as `stopwords.txt`, `dictionary.txt`, or `business_rules.txt` must sit next to the scripts. Copying and keeping them in sync across directories was error-prone before Hadoop’s `-file` option.
-- **Output management:** Local runs drop results into the terminal or temporary files. Tracking 31 outputs manually makes diffing results and verifying idempotency cumbersome.
+- **Output management:** Local runs drop results into the terminal or temporary files. Tracking even the first 10 outputs manually is tedious, and scaling that workflow to all 31 exercises would be unmanageable.
 
 ### How Hadoop Simplified the Workflow
 - **Streaming handles plumbing:** Hadoop Streaming guarantees the mapper output is sorted before hitting the reducer, so the classic Unix pipeline mistakes disappear. Each job definition is self-contained.
 - **Parallelism for free:** Even on a single node, Hadoop splits input into blocks and can launch multiple mapper tasks. Jobs that took ~45 seconds locally dropped below 10 seconds when HDFS fed multiple tasks in parallel.
-- **Declarative parameters:** `-cmdenv` captures environment variables inside the job definition, so reruns weeks later still carry the same configuration without hunting through shell history.
-- **Managed distributed files:** Using `-file` ensures supplemental assets are copied to every task container. Hadoop keeps the working directory clean and prevents “file not found” surprises.
+- **Reusable job commands:** Each exercise has a single `hadoop jar ...` invocation that can be copy-pasted or scripted, replacing long ad-hoc shell pipelines.
 - **Auditable outputs:** Every run leaves an immutable `_SUCCESS` flag and timestamped `part-*` outputs in HDFS. Combined with the Web UI, it is easy to prove when data was produced and by which job ID.
 
 ### Takeaway
@@ -1041,18 +909,17 @@ Classic local runs are convenient for quick smoke tests, but they do not scale o
 
 This project successfully demonstrates:
 
-1. **Python Implementation**: 31 MapReduce exercises using only Python standard library, following consistent coding patterns and best practices.
+1. **Python Implementation**: The first 10 MapReduce exercises implemented with only the Python standard library, following consistent coding patterns and best practices.
 
 2. **Local Testing**: Ability to test mappers and reducers locally using Unix pipes before deploying to Hadoop.
 
 3. **Hadoop Setup**: Complete installation and configuration of Hadoop 3.3.6 on a local machine, including Java setup, SSH configuration, and XML file configuration.
 
-4. **Distributed Processing**: Deployment of Python scripts to Hadoop cluster using Hadoop Streaming, with support for:
+4. **Distributed Processing**: Deployment of Python scripts to Hadoop through Hadoop Streaming, covering:
    - Standard map-reduce jobs
-   - Map-only jobs
-   - Environment variables
-   - Distributed cache
-   - Multi-stage job chaining
+   - Multi-file ingestion (Exercise 2)
+   - Two-stage job chaining (Exercise 8)
+   - Reducer-side optimizations with combiners (Exercise 9)
 
 5. **Output Verification**: Multiple methods to verify job outputs:
    - Command-line tools (`hdfs dfs -cat`, `hdfs dfs -ls`)
@@ -1126,8 +993,8 @@ hadoop jar "$STREAMING_JAR" \
 ---
 
 **Report Generated**: November 2024  
-**Project**: Hadoop MapReduce Exercises  
-**Total Exercises**: 31  
+**Project**: Hadoop MapReduce Exercises (Mandatory Set)  
+**Total Exercises Covered in Report**: 10  
 **Hadoop Version**: 3.3.6  
 **Python Version**: 3.x
 

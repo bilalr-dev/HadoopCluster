@@ -211,17 +211,200 @@ if __name__ == "__main__":
 - **Combiners (Exercise 9):** Introduces mapper-side aggregation to shrink shuffle volume when counting frequent tokens.
 - **Full-scan totals (Exercise 10):** Reinforces reducer-side summations by scanning every column and emitting global totals.
 
-### Python Perspective on Exercises 1–10 (High-Level)
-- **Exercise 1 – Word Count:** Highlights basic text processing with `re.findall`, lowercase normalization, and integer accumulation in the reducer.
-- **Exercise 2 – Multi-File Word Count:** Reuses the same mapper/reducer as Exercise 1, proving that Hadoop’s streaming stdin lets Python code remain unchanged even when inputs span multiple files.
-- **Exercise 3 – PM10 Counts by Zone:** The mapper splits tab-delimited rows and emits `(zone, 1)`; the reducer totals with simple counters, reinforcing control flow around malformed lines.
-- **Exercise 4 – PM10 Zone Dates:** Emits `(zone, date)` pairs and uses Python sets to deduplicate dates before printing, demonstrating lightweight in-memory structures.
-- **Exercise 5 – PM10 Average:** Mapper emits numeric readings; reducer keeps running sums and counts in dictionaries, then prints formatted averages using Python’s float math.
-- **Exercise 6 – PM10 Max/Min:** Shows how tuple comparisons capture both current max and min per zone without third-party libraries.
-- **Exercise 7 – Inverted Index:** Mapper records `(word, line:position)` strings; reducer sorts tuples before output, exercising list sorting and custom parsing helpers.
-- **Exercise 8 – Two-Stage Income Analysis:** First reducer writes monthly totals; second mapper/reducer pair reads that intermediate file to compute yearly averages, showcasing modular Python scripts.
-- **Exercise 9 – Word Count with Combiner:** Adds an in-mapper dictionary (`defaultdict(int)`) to aggregate before emitting, illustrating how Python data structures reduce shuffle traffic.
-- **Exercise 10 – Total Count:** Mapper iterates through CSV columns, emitting labeled metrics; reducer tallies each metric independently via dictionary keys.
+### Detailed Code Explanation for Exercises 1–10
+
+#### Exercise 1: Word Count
+
+**Mapper (`wordcount_mapper.py`):**
+- Line 6: Initializes `line_number = 0` to track which line we're processing
+- Line 8: Reads each line from `sys.stdin` (Hadoop streams input data)
+- Line 10: Strips whitespace from the line
+- Line 12-13: Skips empty lines
+- Line 15: Uses `re.findall(r'\b\w+\b', line.lower())` to:
+  - `line.lower()` converts text to lowercase for case-insensitive counting
+  - `r'\b\w+\b'` regex matches word boundaries and word characters (letters, digits, underscore)
+  - Returns a list of all words found in the line
+- Line 17: `enumerate(words, start=1)` gives each word a position (1, 2, 3...)
+- Line 18: Emits `word\tline_number:word_pos:1` where:
+  - `word` is the lowercase token
+  - `line_number:word_pos` records where the word appeared
+  - `1` is the count (each occurrence = 1)
+
+**Reducer (`wordcount_reducer.py`):**
+- Line 4-6: `parse_position()` helper function splits `"line:pos"` string into tuple `(line, pos)`
+- Line 9: Initializes `word_data = {}` dictionary to store `{word: (first_position, count)}`
+- Line 11: Reads sorted mapper output (Hadoop sorts by key automatically)
+- Line 17: Splits each line into `word` and `position_str` (e.g., "hello" and "1:2:1")
+- Line 18: Parses position string to get `(line_number, word_position)` tuple
+- Line 20-26: For each word:
+  - If word already seen: updates the first position (if current is earlier) and increments count
+  - If word is new: stores it with current position and count=1
+- Line 31: Sorts words alphabetically using `sorted(word_data.items(), key=lambda x: x[0])`
+- Line 33-34: Outputs final result as `word\tcount` (ignoring position info, just counting)
+
+#### Exercise 2: Multi-File Word Count
+
+**Same code as Exercise 1!** The mapper and reducer are identical. Hadoop automatically handles multiple input files by concatenating them into a single stream. The Python code doesn't need to know which file a line came from—it just processes the unified stream.
+
+#### Exercise 3: PM10 Pollution Count by Zone
+
+**Mapper (`pm10_mapper.py`):**
+- Line 4: Defines `THRESHOLD = 50.0` (PM10 values above this are considered high)
+- Line 7: Reads each line from stdin
+- Line 12: Splits line by tab character `\t` (expects format: `sensor_date\tpm10_value`)
+- Line 13-14: Validates that line has exactly 2 parts, skips malformed lines
+- Line 16: Extracts `sensor_date` (format: `sensor_id,date`)
+- Line 17: Extracts PM10 value (splits by space and takes first part)
+- Line 20: Converts PM10 string to float
+- Line 21: **Filtering logic**: Only processes if `pm10_value > THRESHOLD`
+- Line 22: Extracts `sensor_id` from `sensor_date` by splitting on comma
+- Line 23: Emits `sensor_id\t1` for each sensor that exceeded threshold
+
+**Reducer (`pm10_reducer.py`):**
+- Line 5: Initializes `sensor_counts = {}` dictionary
+- Line 13: Splits input into `sensor_id` and `count` (always "1" from mapper)
+- Line 14: Uses `dict.get(key, 0)` to safely get existing count or default to 0, then adds the count
+- Line 18: Sorts sensors alphabetically
+- Line 20-21: Outputs `sensor_id\tfinal_count` showing how many times each sensor exceeded threshold
+
+#### Exercise 4: PM10 Zone Dates
+
+**Mapper (`pm10_zone_mapper.py`):**
+- Similar to Exercise 3 mapper, but:
+- Line 22: Extracts both `zone_id` and `date` from `zone_date` (format: `zone_id,date`)
+- Line 23: Emits `zone_id\tdate` (not just a count, but the actual date)
+
+**Reducer (`pm10_zone_reducer.py`):**
+- Line 5: Initializes `zone_dates = {}` dictionary where values are lists of dates
+- Line 13: Splits input into `zone_id` and `date`
+- Line 14-16: For each zone, appends dates to a list (allows duplicates initially)
+- Line 20: Sorts zones alphabetically
+- Line 22-24: For each zone, joins all dates with `', '` separator and outputs `zone_id\t[date1, date2, ...]`
+- **Note:** This doesn't deduplicate dates—it shows all dates when threshold was exceeded
+
+#### Exercise 5: PM10 Average
+
+**Mapper (`pm10_average_mapper.py`):**
+- Line 10: Splits line by comma (CSV format: `sensor_id,date,pm10_value`)
+- Line 11: Validates exactly 3 parts
+- Line 15: Extracts `sensor_id` from first column
+- Line 16: Extracts `pm10_value` from third column (index 2) and converts to float
+- Line 17: Emits `sensor_id\tpm10_value` (the actual numeric value, not a count)
+
+**Reducer (`pm10_average_reducer.py`):**
+- Line 5: Initializes `sensor_values = {}` dictionary where values are lists of PM10 readings
+- Line 13: Splits input into `sensor_id` and `pm10_value` (as string)
+- Line 14: Converts PM10 string to float
+- Line 16-18: Appends each PM10 value to the sensor's list
+- Line 22: Sorts sensors alphabetically
+- Line 24-26: For each sensor:
+  - Calculates average: `sum(values) / len(values)` (sum of all readings divided by count)
+  - Formats to 1 decimal place: `{average:.1f}`
+  - Outputs `sensor_id\taverage`
+
+#### Exercise 6: PM10 Max/Min
+
+**Mapper (`pm10_maxmin_mapper.py`):**
+- Identical to Exercise 5 mapper: emits `sensor_id\tpm10_value`
+
+**Reducer (`pm10_maxmin_reducer.py`):**
+- Line 5: Initializes `sensor_values = {}` dictionary (same structure as Exercise 5)
+- Line 24-26: For each sensor:
+  - Uses built-in `max(values)` to find maximum PM10 reading
+  - Uses built-in `min(values)` to find minimum PM10 reading
+  - Outputs `sensor_id\tmax=max_value_min=min_value` in a single line
+
+#### Exercise 7: Inverted Index
+
+**Mapper (`inverted_index_mapper.py`):**
+- Line 5: Defines `STOP_WORDS = {'and', 'or', 'not'}` set for filtering
+- Line 13: Splits line by tab (format: `sentence_id\tsentence_text`)
+- Line 18: Converts sentence to lowercase
+- Line 20: Uses `re.findall(r'\b\w+\b', sentence)` to extract words
+- Line 22-24: For each word:
+  - Checks if word is NOT in stop words set
+  - Emits `word\tsentence_id` (maps word to which sentence it appears in)
+
+**Reducer (`inverted_index_reducer.py`):**
+- Line 5: Initializes `word_sentences = {}` dictionary where values are lists of sentence IDs
+- Line 13: Splits input into `word` and `sentence_id`
+- Line 14-17: For each word:
+  - Creates empty list if word not seen before
+  - Appends sentence_id to list (only if not already present—deduplication)
+- Line 21: Sorts words alphabetically
+- Line 23-25: For each word, joins sentence IDs with `', '` and outputs `word\t[sentence1, sentence2, ...]`
+- **Result:** Shows which sentences contain each word (inverted index)
+
+#### Exercise 8: Two-Stage Income Analysis
+
+**Stage 1 - Monthly Totals:**
+
+**Mapper (`monthly_total_mapper.py`):**
+- Line 10: Splits line by tab (format: `date\tincome`)
+- Line 15: Extracts `date` (format: `YYYY-MM-DD`)
+- Line 16: Converts income to float
+- Line 18: Extracts `year_month` using string slicing `date[:7]` (first 7 characters = "YYYY-MM")
+- Line 19: Emits `year_month\tincome`
+
+**Reducer (`monthly_total_reducer.py`):**
+- Line 5: Initializes `month_totals = {}` dictionary
+- Line 13: Splits input into `year_month` and `income`
+- Line 15: Uses `dict.get(year_month, 0)` to safely accumulate income per month
+- Line 19: Sorts months chronologically (string sort works for YYYY-MM format)
+- Line 21-22: Outputs `year_month\tint(total)` (converts to int to remove decimals)
+
+**Stage 2 - Yearly Averages:**
+
+**Mapper (`yearly_average_mapper.py`):**
+- Line 10: Reads output from Stage 1 (format: `year_month\ttotal`)
+- Line 15: Extracts `year_month`
+- Line 16: Converts total to float
+- Line 18: Filters out zero or negative totals
+- Line 19: Extracts `year` using string slicing `year_month[:4]` (first 4 characters = "YYYY")
+- Line 20: Emits `year\ttotal` (monthly total for that year)
+
+**Reducer (`yearly_average_reducer.py`):**
+- Line 5: Initializes `year_data = {}` dictionary with nested structure: `{year: {'sum': 0, 'count': 0}}`
+- Line 13: Splits input into `year` and `total`
+- Line 16-17: Initializes nested dictionary if year not seen
+- Line 19-20: Accumulates sum and increments count for each monthly total
+- Line 24: Sorts years chronologically
+- Line 26-29: For each year:
+  - Calculates average: `sum / count` (total of all monthly totals divided by number of months)
+  - Formats to 1 decimal place
+  - Outputs `year\taverage`
+
+#### Exercise 9: Word Count with Combiner
+
+**Mapper (`wordcount_combiner_mapper.py`):**
+- Line 6: Initializes `word_counts = {}` dictionary **inside the mapper** (this is the "combiner" logic)
+- Line 13: Uses `re.findall()` to extract words (same as Exercise 1)
+- Line 15-16: **Local aggregation**: For each word in the current line, increments count in dictionary
+- Line 18: After processing entire input split, sorts words alphabetically
+- Line 19: Emits `word\tcount` where count is the **local count** for this split
+- **Key difference from Exercise 1:** Aggregates within mapper before emitting, reducing data sent to reducer
+
+**Reducer (`wordcount_combiner_reducer.py`):**
+- Line 5: Initializes `word_counts = {}` dictionary
+- Line 13: Splits input into `word` and `count_str` (now count can be > 1 due to combiner)
+- Line 15: Uses `dict.get(word, 0)` to safely accumulate counts from multiple mappers
+- Line 19: Sorts words alphabetically
+- Line 21-22: Outputs final `word\tcount` (sum of all partial counts from mappers)
+
+#### Exercise 10: Total Count
+
+**Mapper (`total_count_mapper.py`):**
+- Line 10: Splits line by comma (CSV format)
+- Line 11: Validates that line has exactly 3 columns
+- Line 12: If valid CSV row, emits `"total"\t1` (a single key "total" with value 1)
+- **Purpose:** Counts how many valid rows exist in the dataset
+
+**Reducer (`total_count_reducer.py`):**
+- Line 5: Initializes `total = 0` (simple counter, not a dictionary since there's only one key)
+- Line 13: Splits input into `key` and `count_str`
+- Line 14-15: If key is "total", adds count to total
+- Line 19: Outputs just the number (total count of valid rows)
+- **Result:** Single number representing total number of records processed
 
 ### Exercise Categories Covered in This Report
 

@@ -211,6 +211,18 @@ if __name__ == "__main__":
 - **Combiners (Exercise 9):** Introduces mapper-side aggregation to shrink shuffle volume when counting frequent tokens.
 - **Full-scan totals (Exercise 10):** Reinforces reducer-side summations by scanning every column and emitting global totals.
 
+### Python Perspective on Exercises 1–10 (High-Level)
+- **Exercise 1 – Word Count:** Highlights basic text processing with `re.findall`, lowercase normalization, and integer accumulation in the reducer.
+- **Exercise 2 – Multi-File Word Count:** Reuses the same mapper/reducer as Exercise 1, proving that Hadoop’s streaming stdin lets Python code remain unchanged even when inputs span multiple files.
+- **Exercise 3 – PM10 Counts by Zone:** The mapper splits tab-delimited rows and emits `(zone, 1)`; the reducer totals with simple counters, reinforcing control flow around malformed lines.
+- **Exercise 4 – PM10 Zone Dates:** Emits `(zone, date)` pairs and uses Python sets to deduplicate dates before printing, demonstrating lightweight in-memory structures.
+- **Exercise 5 – PM10 Average:** Mapper emits numeric readings; reducer keeps running sums and counts in dictionaries, then prints formatted averages using Python’s float math.
+- **Exercise 6 – PM10 Max/Min:** Shows how tuple comparisons capture both current max and min per zone without third-party libraries.
+- **Exercise 7 – Inverted Index:** Mapper records `(word, line:position)` strings; reducer sorts tuples before output, exercising list sorting and custom parsing helpers.
+- **Exercise 8 – Two-Stage Income Analysis:** First reducer writes monthly totals; second mapper/reducer pair reads that intermediate file to compute yearly averages, showcasing modular Python scripts.
+- **Exercise 9 – Word Count with Combiner:** Adds an in-mapper dictionary (`defaultdict(int)`) to aggregate before emitting, illustrating how Python data structures reduce shuffle traffic.
+- **Exercise 10 – Total Count:** Mapper iterates through CSV columns, emitting labeled metrics; reducer tallies each metric independently via dictionary keys.
+
 ### Exercise Categories Covered in This Report
 
 - **Exercises 1–6 (Foundational analytics):** Word counting, PM10 pollution summaries, rolling averages, min/max detection, and data filtering.

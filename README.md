@@ -25,7 +25,7 @@ This repository contains MapReduce exercises covering:
 
 #### Step 1: Install Java 11
 
-Hadoop 3.3.6 requires Java 8 or 11 (not Java 21+).
+Hadoop 3.3.6 requires Java 8 or 11.
 
 **macOS (using Homebrew):**
 ```bash
